@@ -1,0 +1,1 @@
+import{j as e}from"./index-BMzRakE6.js";function a({children:s,light:t=!1}){return e.jsxs("p",{className:"font-mono text-xs uppercase tracking-[0.25em] text-[#9CA3AF] mb-4",children:[e.jsx("span",{className:"inline-block w-8 h-px bg-[#3A3A3A] mr-3 align-middle"}),s]})}export{a as S};

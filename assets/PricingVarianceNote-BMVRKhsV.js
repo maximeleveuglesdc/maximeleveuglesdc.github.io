@@ -1,0 +1,1 @@
+import{j as e}from"./index-BMzRakE6.js";function a(){return e.jsx("p",{className:"mt-8 max-w-xl mx-auto text-center text-sm leading-relaxed",style:{color:"#4B5563"},children:"Le tarif varie selon le secteur, la taille de l'établissement, la complexité opérationnelle et le niveau de présence terrain requis. Le montant exact est confirmé après le diagnostic."})}export{a as P};
