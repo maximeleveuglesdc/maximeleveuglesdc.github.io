@@ -1,0 +1,9 @@
+{
+  "name": "Aperçu temporaire — Structure de Cuisine",
+  "short_name": "Aperçu SDC",
+  "lang": "fr-CA",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#151515",
+  "theme_color": "#151515"
+}
