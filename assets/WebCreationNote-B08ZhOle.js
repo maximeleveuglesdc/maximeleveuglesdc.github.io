@@ -1,1 +1,0 @@
-import{j as e}from"./index-BMzRakE6.js";function a(){return e.jsx("p",{className:"max-w-xl mx-auto py-8 px-6 text-center font-mono text-[10px] uppercase tracking-[0.15em] text-white/25 leading-relaxed",children:"Ce site a été conçu par Maxime Leveugle / SDC."})}export{a as W};
