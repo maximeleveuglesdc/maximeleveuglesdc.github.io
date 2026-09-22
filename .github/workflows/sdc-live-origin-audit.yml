@@ -1,0 +1,74 @@
+name: Read-only SDC live origin audit
+on:
+  push:
+    branches: ['sdc/audit-live-origin-20260922']
+    paths: ['.github/workflows/sdc-live-origin-audit.yml']
+permissions: {}
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Compare public site assets with known GitHub preview
+        shell: python
+        run: |
+          import hashlib, json, re, socket
+          from urllib.request import Request, urlopen
+          from urllib.parse import urljoin, urlsplit
+          from html.parser import HTMLParser
+          class Tags(HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.assets=[]; self.meta=[]
+              def handle_starttag(self, tag, attrs):
+                  a=dict(attrs)
+                  if tag=='script' and a.get('src'): self.assets.append(a['src'])
+                  if tag=='link' and a.get('rel')=='stylesheet': self.assets.append(a.get('href',''))
+                  if tag=='meta' and a.get('name') in ['robots','description']: self.meta.append(a)
+          def get(url):
+              with urlopen(Request(url,headers={'User-Agent':'SDC-site-origin-audit/1.0','Cache-Control':'no-cache'}),timeout=20) as r:
+                  return r.read(),r.status,r.geturl(),dict(r.headers)
+          def blob(b): return hashlib.sha1(b'blob '+str(len(b)).encode()+b'\0'+b).hexdigest()
+          origin='https://structuredecuisine.ca/'
+          preview='https://raw.githubusercontent.com/maximeleveuglesdc/maximeleveuglesdc.github.io/main/'
+          needles=['Une cuisine qui ne dépend plus','Reprenez le contrôle','Davis Furlong','Vincent Pizzini','Coriandre','mailto:info@','sdc-static']
+          print('DNS_A',json.dumps(sorted(set(x[4][0] for x in socket.getaddrinfo('structuredecuisine.ca',443)))))
+          try:
+              d,_,_,_=get('https://cloudflare-dns.com/dns-query?name=structuredecuisine.ca&type=CNAME&ct=application/dns-json')
+              print('DNS_CNAME',d.decode()[:2500])
+          except Exception as e: print('DNS_CNAME_ERROR',type(e).__name__)
+          queue=[]; known=set()
+          for suffix in ['', 'restaurant']:
+              u=origin+suffix
+              try:
+                  b,status,final,headers=get(u); text=b.decode('utf-8'); parser=Tags(); parser.feed(text)
+                  print('DOCUMENT',json.dumps({'url':u,'final':final,'http':status,'bytes':len(b),'blob':blob(b),'headers':{k:v for k,v in headers.items() if k.lower() in ['server','via','x-powered-by','x-served-by','etag','last-modified','cf-ray']},'assets':parser.assets,'meta':parser.meta},ensure_ascii=False))
+                  print('DOCUMENT_HEAD',text[:1600])
+                  for a in parser.assets:
+                      absolute=urljoin(u,a)
+                      if urlsplit(absolute).netloc=='structuredecuisine.ca': queue.append(absolute)
+                  for needle in needles:
+                      i=text.find(needle)
+                      if i>=0: print('DOC_MARKER',json.dumps({'needle':needle,'excerpt':text[max(0,i-80):i+250]},ensure_ascii=False))
+              except Exception as e: print('DOCUMENT_ERROR',u,type(e).__name__,str(e))
+          inspected=0
+          while queue and inspected<10:
+              u=queue.pop(0)
+              if u in known: continue
+              known.add(u);inspected+=1
+              try:
+                  b,status,final,headers=get(u); text=b.decode('utf-8')
+                  rel=urlsplit(u).path.lstrip('/')
+                  match=None
+                  try:
+                      old,_,_,_=get(preview+rel);match=(old==b)
+                  except Exception: pass
+                  print('ASSET',json.dumps({'url':u,'bytes':len(b),'blob':blob(b),'identical_github_preview':match,'map_references':re.findall(r'sourceMappingURL=([^\s]+)',text)},ensure_ascii=False))
+                  for needle in needles:
+                      i=text.find(needle)
+                      if i>=0:print('ASSET_MARKER',json.dumps({'needle':needle,'excerpt':text[max(0,i-90):i+280]},ensure_ascii=False))
+                  for name in re.findall(r'[\"\x27]([^\"\x27]*(?:sectorPages|SectorPage|Services-|Team-)[^\"\x27]*\.js)[\"\x27]',text):
+                      if len(name)<160:
+                          asset=urljoin(u,name)
+                          if urlsplit(asset).netloc=='structuredecuisine.ca':queue.append(asset)
+              except Exception as e: print('ASSET_ERROR',u,type(e).__name__,str(e))
+          print('READ_ONLY_AUDIT_DONE: no application file, deployment, domain, or DNS changed')
